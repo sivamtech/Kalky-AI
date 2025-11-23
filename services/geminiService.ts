@@ -1,43 +1,53 @@
+
 import { GoogleGenAI, Chat } from "@google/genai";
 
-// Initialize the client with the environment variable API key
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
- * edits an image using the Gemini 2.5 Flash Image model.
- * @param base64Image The source image in base64 format (including metadata prefix or raw)
- * @param prompt The text instruction for editing
- * @param mimeType The mime type of the input image
+ * Generates or edits an image using the Gemini 2.5 Flash Image model with multiple inputs.
+ * @param base64Images Array of source images in base64 format
+ * @param prompt The text instruction
+ * @param aspectRatio The desired output aspect ratio
  * @returns The base64 string of the generated image
  */
 export const editImageWithGemini = async (
-  base64Image: string,
+  base64Images: string[],
   prompt: string,
-  mimeType: string = 'image/png'
+  aspectRatio: string = '1:1',
 ): Promise<string> => {
   try {
-    // Clean the base64 string if it contains the data URL prefix
-    const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+    const parts: any[] = [
+      {
+        text: `Perform the following image generation/edit: "${prompt}".\n\nIMPORTANT: You must ONLY return the edited/generated image. Do not provide any text explanation. If the request is to mix images, blend their concepts.`, 
+      }
+    ];
+
+    // Add all images to the payload
+    for (const base64Image of base64Images) {
+        const match = base64Image.match(/^data:(image\/\w+);base64,/);
+        const mimeType = match ? match[1] : 'image/png';
+        const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
+
+        parts.push({
+            inlineData: {
+                data: base64Data,
+                mimeType: mimeType,
+            },
+        });
+    }
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image', // Nano Banana
       contents: [
         {
-          parts: [
-            {
-              inlineData: {
-                data: base64Data,
-                mimeType: mimeType,
-              },
-            },
-            {
-              text: prompt,
-            },
-          ],
+          parts: parts,
         }
       ],
-      // We rely on default config. 
-      // Note: Setting responseMimeType is NOT supported for this model.
+      config: {
+        imageConfig: {
+            aspectRatio: aspectRatio
+        }
+      }
     });
 
     const candidate = response.candidates?.[0];
@@ -46,29 +56,34 @@ export const editImageWithGemini = async (
     if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
       console.warn("Gemini finishReason:", candidate.finishReason);
       if (candidate.finishReason === 'SAFETY') {
-        throw new Error("The request was blocked by safety filters. Please try a different prompt or image.");
+        throw new Error("Safety Block: The model refused to generate the image based on safety guidelines. Please try a different prompt.");
+      }
+      if (candidate.finishReason === 'RECITATION') {
+        throw new Error("Recitation Block: The model flagged this content as a recitation of copyrighted material.");
       }
       throw new Error(`Generation stopped due to: ${candidate.finishReason}`);
     }
 
-    const parts = candidate?.content?.parts;
+    const responseParts = candidate?.content?.parts;
     
-    if (!parts || parts.length === 0) {
-      throw new Error("No content returned from Gemini. The model might have refused the request.");
+    if (!responseParts || responseParts.length === 0) {
+      // If we have no parts but no error finishReason, it's an unexpected API state
+      throw new Error("No content returned from Gemini. Please try again with a different image or prompt.");
     }
 
     // Iterate through parts to find the image
-    for (const part of parts) {
+    for (const part of responseParts) {
       if (part.inlineData && part.inlineData.data) {
         return `data:image/png;base64,${part.inlineData.data}`;
       }
     }
 
     // Fallback if no image is found but text is returned (e.g., error explanation)
-    const textPart = parts.find(p => p.text);
+    const textPart = responseParts.find(p => p.text);
     if (textPart && textPart.text) {
       // Sometimes the model answers with text if it cannot perform the edit
-      throw new Error(`Model returned text instead of image: "${textPart.text}"`);
+      console.log("Model Text Response:", textPart.text);
+      throw new Error(`The model responded with text instead of an image: "${textPart.text.substring(0, 100)}..."`);
     }
 
     throw new Error("No image data found in the response.");

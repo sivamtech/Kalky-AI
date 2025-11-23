@@ -60,9 +60,15 @@ const App: React.FC = () => {
         {mode === 'genai' ? <GenAIView /> : <ChatView />}
       </main>
       
-      <footer className="w-full text-center py-4 z-0">
-        <p className="text-slate-400 text-xs font-medium tracking-wide">
-          Designed by Kalky Digital
+      <footer className="w-full text-center py-8 z-0 mt-8">
+        <div className="flex flex-wrap justify-center gap-6 mb-4 text-xs font-medium text-slate-500 tracking-wide uppercase">
+          <a href="https://www.kalkyinterior.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#000044] transition-colors">Kalky Interior</a>
+          <a href="https://www.kitzine.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#000044] transition-colors">Kitzine</a>
+          <a href="https://www.kalkydigital.com" target="_blank" rel="noopener noreferrer" className="hover:text-[#000044] transition-colors">Kalky Digital</a>
+          <a href="https://www.kalky.in" target="_blank" rel="noopener noreferrer" className="hover:text-[#000044] transition-colors">Kalky Infra</a>
+        </div>
+        <p className="text-slate-400 text-xs">
+          © {new Date().getFullYear()} Kalky Digital. All Rights Reserved.
         </p>
       </footer>
     </div>

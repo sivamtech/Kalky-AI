@@ -11,6 +11,13 @@ export const ChatView: React.FC = () => {
   const chatSessionRef = useRef<Chat | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const quickActions = [
+    "Tell me about Kalky Interior",
+    "What services does Kitzine offer?",
+    "How can Kalky Digital help my business?",
+    "Construction services by Kalky Infra"
+  ];
+
   useEffect(() => {
     // Initialize chat session on mount
     chatSessionRef.current = createChatSession();
@@ -42,10 +49,10 @@ How may I assist you today?`,
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!inputValue.trim() || !chatSessionRef.current || isLoading) return;
+  const handleSendMessage = async (text: string = inputValue) => {
+    if (!text.trim() || !chatSessionRef.current || isLoading) return;
 
-    const userMessageText = inputValue.trim();
+    const userMessageText = text.trim();
     setInputValue('');
     setIsLoading(true);
 
@@ -144,6 +151,21 @@ How may I assist you today?`,
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Suggested Actions (Only show when chat is empty or just started) */}
+      {messages.length < 3 && !isLoading && (
+        <div className="w-full max-w-3xl px-4 pb-2 flex gap-2 overflow-x-auto no-scrollbar">
+          {quickActions.map((action, idx) => (
+            <button
+              key={idx}
+              onClick={() => handleSendMessage(action)}
+              className="whitespace-nowrap px-4 py-2 rounded-full bg-white/40 border border-white/50 text-xs font-medium text-[#000044] hover:bg-white hover:shadow-md transition-all backdrop-blur-sm"
+            >
+              {action}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Input Area */}
       <div className="w-full max-w-3xl px-4 py-6">
         <div className={`glass-panel p-2 rounded-[2rem] shadow-2xl shadow-blue-900/10 flex items-center gap-2 pr-2 pl-6 ring-1 ring-white/50 hover:ring-blue-200/50 transition-all ${isLoading ? 'opacity-80' : ''}`}>
@@ -159,7 +181,7 @@ How may I assist you today?`,
             />
             <Button 
                 variant="primary" 
-                onClick={handleSendMessage}
+                onClick={() => handleSendMessage()}
                 disabled={!inputValue.trim() || isLoading}
                 className="w-10 h-10 !p-0 rounded-full flex items-center justify-center shrink-0 transition-transform active:scale-90"
             >
